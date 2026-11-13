@@ -68,6 +68,21 @@
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="{{ $style }}" class="{{ $class }}"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
         @break
 
+    @case('filter')
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="{{ $style }}" class="{{ $class }}"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        @break
+
+    @case('trash')
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="{{ $style }}" class="{{ $class }}"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        @break
+
+    @case('pen')
+    @case('edit')
+    @case('edit-2')
+    @case('edit-3')
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="{{ $style }}" class="{{ $class }}"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        @break
+
     @default
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="{{ $style }}" class="{{ $class }}"><circle cx="12" cy="12" r="10"/></svg>
 @endswitch

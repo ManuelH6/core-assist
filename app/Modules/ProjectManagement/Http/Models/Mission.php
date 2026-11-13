@@ -2,20 +2,42 @@
 
 namespace App\Modules\ProjectManagement\Http\Models;
 
+use App\Models\User;
+use App\Modules\ClientRelationship\Http\Models\Framing;
+use App\Modules\Diagnostic360Matrix\Models\Diagnostic360Matrix;
+use App\Modules\DiagnosticArchivePack\Models\DiagnosticArchivePack;
+use App\Modules\DiagnosticIntakeRegister\Models\DiagnosticIntakeRegister;
+use App\Modules\DiagnosticRestitutionDeck\Models\DiagnosticRestitutionDeck;
+use App\Modules\DiagnosticScopeCanvas\Models\DiagnosticScopeCanvas;
+use App\Modules\LiveDecisionCapture\Models\LiveDecisionCapture;
+use App\Modules\MissionFramingSheet\Models\MissionFramingSheet;
+use App\Modules\NextStepRouter\Models\NextStepRouter;
+use App\Modules\ProblemStructuringGrid\Models\ProblemStructuringGrid;
+use App\Modules\StakeholderInputGrid\Models\StakeholderInputGrid;
+use App\Modules\ToolManagement\Http\Models\MissionToolUsage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Mission extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'framing_id',
+        'reference',
         'title',
         'description',
+        'objective',
         'status',
+        'created_by',
+        'started_at',
+        'closed_at',
+        'closed_by',
         'start_date',
         'due_date',
         'budget',
@@ -27,8 +49,65 @@ class Mission extends Model
         return [
             'start_date' => 'date',
             'due_date' => 'date',
+            'started_at' => 'datetime',
+            'closed_at' => 'datetime',
             'budget' => 'decimal:2',
         ];
+    }
+
+    public function framing(): BelongsTo
+    {
+        return $this->belongsTo(Framing::class);
+    }
+
+    public function framingSheet(): HasOne
+    {
+        return $this->hasOne(MissionFramingSheet::class);
+    }
+
+    public function scopeCanvas(): HasOne
+    {
+        return $this->hasOne(DiagnosticScopeCanvas::class);
+    }
+
+    public function intakeRegister(): HasOne
+    {
+        return $this->hasOne(DiagnosticIntakeRegister::class);
+    }
+
+    public function stakeholderGrid(): HasOne
+    {
+        return $this->hasOne(StakeholderInputGrid::class);
+    }
+
+    public function diagnosticMatrix(): HasOne
+    {
+        return $this->hasOne(Diagnostic360Matrix::class);
+    }
+
+    public function problemGrid(): HasOne
+    {
+        return $this->hasOne(ProblemStructuringGrid::class);
+    }
+
+    public function restitutionDeck(): HasOne
+    {
+        return $this->hasOne(DiagnosticRestitutionDeck::class);
+    }
+
+    public function decisionCapture(): HasOne
+    {
+        return $this->hasOne(LiveDecisionCapture::class);
+    }
+
+    public function archivePack(): HasOne
+    {
+        return $this->hasOne(DiagnosticArchivePack::class);
+    }
+
+    public function nextStepRouter(): HasOne
+    {
+        return $this->hasOne(NextStepRouter::class);
     }
 
     public function manager(): BelongsTo
@@ -39,6 +118,28 @@ class Mission extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function members(): HasMany
+    {
+        return $this->hasMany(MissionMember::class);
+    }
+
+    public function teamUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'mission_members')
+            ->withPivot(['id', 'mission_role', 'status', 'joined_at'])
+            ->withTimestamps();
+    }
+
+    public function works(): HasMany
+    {
+        return $this->hasMany(Work::class);
+    }
+
+    public function toolUsages(): HasMany
+    {
+        return $this->hasMany(MissionToolUsage::class);
     }
 
     /**
@@ -80,11 +181,23 @@ class Mission extends Model
      */
     public function daysOverdue(): int
     {
-        if (!$this->isOverdue()) {
+        if (! $this->isOverdue()) {
             return 0;
         }
 
-        return (int) max(1, $this->due_date->diffInDays(now()));
+        return (int) max(1, $this->due_date->startOfDay()->diffInDays(now()->startOfDay()));
+    }
+
+    /**
+     * Nombre de jours calendaires restants avant l'échéance.
+     */
+    public function daysRemaining(): int
+    {
+        if ($this->due_date === null) {
+            return 0;
+        }
+
+        return (int) max(0, now()->startOfDay()->diffInDays($this->due_date->startOfDay(), false));
     }
 
     /**
@@ -96,7 +209,7 @@ class Mission extends Model
             return false;
         }
 
-        $daysRemaining = (int) now()->diffInDays($this->due_date, false);
+        $daysRemaining = (int) now()->startOfDay()->diffInDays($this->due_date->startOfDay(), false);
 
         return $daysRemaining >= 0 && $daysRemaining <= 7 && $this->progressPercentage() < 50;
     }

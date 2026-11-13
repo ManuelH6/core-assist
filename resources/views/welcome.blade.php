@@ -1,72 +1,130 @@
 @extends('layouts.app')
 
-@section('title', 'Gestion de Cabinet & Pilotage - ' . config('app.name', 'Laravel'))
+@section('title', 'Pilotage de Cabinet & Outils Métier - CoreAssist')
 
 @section('content')
-<div class="container">
-    <div class="hero">
-        <div class="badge-row">
-            <span class="badge badge-green"><x-icon name="check" size="13" /> 100% Laravel Blade</span>
-            <span class="badge"><x-icon name="briefcase" size="13" /> Gestion de Cabinet & Staffing</span>
-            <span class="badge"><x-icon name="chart" size="13" /> Module Financier</span>
-        </div>
-        <h1>Pilotage de Cabinet & Outils Métier</h1>
-        <p>
-            Plateforme modulaire : gestion des missions, allocation hebdomadaire de la charge de travail (staffing), suivi d'équipe et analyses financières.
+@php
+    $authUser = auth()->user();
+@endphp
+<div class="container py-4">
+    <!-- En-tête héro sobre et institutionnel -->
+    <section class="text-center py-5" aria-labelledby="hero-title">
+        <div class="ba-eyebrow">ESPACE OPÉRATIONNEL</div>
+        <h1 id="hero-title" class="display-5 fw-bold mb-3">
+            Pilotage de Cabinet &amp; Interventions<span class="ba-dot">.</span>
+        </h1>
+        <p class="lead mx-auto mb-4" style="max-width: 680px; color: var(--ba-graphite-500);">
+            Suivi des demandes clients, cadrage méthodologique, configuration des missions et diagnostic 360° en temps réel.
         </p>
-        <div class="actions">
-            <a href="{{ route('missions.index') }}" class="btn btn-primary">
-                <x-icon name="briefcase" size="16" /> Voir les Missions
-            </a>
-            <a href="{{ route('collaborators.index') }}" class="btn btn-secondary">
-                <x-icon name="users" size="16" /> Équipe & Staffing
-            </a>
-            <a href="{{ route('collections.index') }}" class="btn btn-secondary">
-                <x-icon name="clipboard" size="16" /> Outils Financiers
-            </a>
-        </div>
-    </div>
 
-    <div class="features-grid">
-        <div class="card">
-            <h3 class="card-title">
-                <x-icon name="briefcase" size="20" /> Missions & Dossiers
-            </h3>
-            <p style="margin-bottom: 1.25rem;">
-                Suivi des missions, taux d'avancement (%), interventions programmées et volume hebdomadaire engagé.
-            </p>
-            <a href="{{ route('missions.index') }}" class="btn btn-secondary btn-sm">Accéder aux missions</a>
-        </div>
+        @if(! $authUser)
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <a href="{{ route('login') }}" class="btn btn-primary">
+                    <x-icon name="lock" size="16" /> Se connecter à mon espace
+                </a>
+                <a href="{{ route('missions.index') }}" class="btn btn-secondary">
+                    <x-icon name="briefcase" size="16" /> Portefeuille des Missions
+                </a>
+            </div>
+        @elseif($authUser->isClient())
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <a href="{{ route('client-portal.index') }}" class="btn btn-primary">
+                    <x-icon name="clipboard" size="16" /> Accéder à mes demandes
+                </a>
+                <a href="{{ route('client-portal.requests.create') }}" class="btn btn-secondary">
+                    <x-icon name="plus" size="16" /> Déposer une nouvelle demande
+                </a>
+            </div>
+        @else
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                @if($authUser->canManageClientsAndRequests())
+                    <a href="{{ route('requests.index') }}" class="btn btn-primary">
+                        <x-icon name="clipboard" size="16" /> Demandes Clients
+                    </a>
+                @endif
+                <a href="{{ route('missions.index') }}" class="btn btn-secondary">
+                    <x-icon name="briefcase" size="16" /> Accéder aux Missions
+                </a>
+                <a href="{{ route('collaborators.index') }}" class="btn btn-outline-secondary">
+                    <x-icon name="users" size="16" /> Plan de Staffing
+                </a>
+            </div>
+        @endif
+    </section>
 
-        <div class="card">
-            <h3 class="card-title">
-                <x-icon name="users" size="20" /> Staffing Cabinet (h/sem)
-            </h3>
-            <p style="margin-bottom: 1.25rem;">
-                Allocation par nombre d'heures par semaine, calcul du taux d'occupation sur 35h et détection instantanée du sur-staffing.
-            </p>
-            <a href="{{ route('collaborators.index') }}" class="btn btn-secondary btn-sm">Gérer le staffing</a>
-        </div>
+    @if(! $authUser || $authUser->isCabinet())
+        <section aria-labelledby="modules-title" class="mt-4">
+            <h2 id="modules-title" class="visually-hidden">Espaces de travail</h2>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <div class="ba-eyebrow">RELATION CLIENT</div>
+                            <h3 class="card-title h5 d-flex align-items-center gap-2 mb-2">
+                                <x-icon name="clipboard" size="18" /> Demandes &amp; Cadrage
+                            </h3>
+                            <p class="card-text small mb-4 flex-grow-1" style="color: var(--ba-graphite-500);">
+                                Réception des demandes portail, compréhension initiale du besoin et validation du cadrage.
+                            </p>
+                            <a href="{{ $authUser?->canManageClientsAndRequests() ? route('requests.index') : route('login') }}" class="btn btn-outline-secondary btn-sm mt-auto">
+                                Consulter les demandes &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="card">
-            <h3 class="card-title">
-                <x-icon name="clipboard" size="20" /> Collecte & Production
-            </h3>
-            <p style="margin-bottom: 1.25rem;">
-                Saisie des volumes de vente, prix unitaires et coûts de production journaliers.
-            </p>
-            <a href="{{ route('collections.index') }}" class="btn btn-secondary btn-sm">Ouvrir les collectes</a>
-        </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <div class="ba-eyebrow">PORTEFEUILLE</div>
+                            <h3 class="card-title h5 d-flex align-items-center gap-2 mb-2">
+                                <x-icon name="briefcase" size="18" /> Missions
+                            </h3>
+                            <p class="card-text small mb-4 flex-grow-1" style="color: var(--ba-graphite-500);">
+                                Configuration des outils autorisés, pilotage de l'avancement et diagnostic 360°.
+                            </p>
+                            <a href="{{ route('missions.index') }}" class="btn btn-outline-secondary btn-sm mt-auto">
+                                Consulter le portefeuille &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="card">
-            <h3 class="card-title">
-                <x-icon name="chart" size="20" /> Analyse & Rentabilité
-            </h3>
-            <p style="margin-bottom: 1.25rem;">
-                Moteur de calcul de marge brute journalière avec traçabilité par snapshots immuables.
-            </p>
-            <a href="{{ route('analyses.index') }}" class="btn btn-secondary btn-sm">Consulter les analyses</a>
-        </div>
-    </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <div class="ba-eyebrow">RESSOURCES</div>
+                            <h3 class="card-title h5 d-flex align-items-center gap-2 mb-2">
+                                <x-icon name="users" size="18" /> Équipe &amp; Staffing
+                            </h3>
+                            <p class="card-text small mb-4 flex-grow-1" style="color: var(--ba-graphite-500);">
+                                Équilibrage de la charge hebdomadaire, suivi du taux d'occupation et alertes surcharge.
+                            </p>
+                            <a href="{{ route('collaborators.index') }}" class="btn btn-outline-secondary btn-sm mt-auto">
+                                Gérer les allocations &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <div class="ba-eyebrow">RENTABILITÉ</div>
+                            <h3 class="card-title h5 d-flex align-items-center gap-2 mb-2">
+                                <x-icon name="chart" size="18" /> Analyses
+                            </h3>
+                            <p class="card-text small mb-4 flex-grow-1" style="color: var(--ba-graphite-500);">
+                                Calcul instantané des marges brutes, rentabilité journalière et snapshots immuables.
+                            </p>
+                            <a href="{{ route('analyses.index') }}" class="btn btn-outline-secondary btn-sm mt-auto">
+                                Voir les rapports &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    @endif
 </div>
 @endsection

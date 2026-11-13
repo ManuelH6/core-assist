@@ -13,14 +13,13 @@ return new class extends Migration
     {
         Schema::create('financial_analyses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('financial_collection_id')
-                ->nullable()
-                ->constrained('financial_collections')
-                ->nullOnDelete();
-            $table->decimal('daily_revenue', 15, 2);
-            $table->decimal('daily_production_cost', 15, 2);
-            $table->decimal('daily_gross_margin', 15, 2);
+            $table->nullableMorphs('source');
+            $table->string('analysis_type')->default('gross_margin');
+            $table->decimal('daily_revenue', 15, 2)->nullable();
+            $table->decimal('daily_production_cost', 15, 2)->nullable();
+            $table->decimal('daily_gross_margin', 15, 2)->nullable();
             $table->json('input_snapshot')->nullable();
+            $table->json('result_snapshot')->nullable();
             $table->timestamps();
         });
     }

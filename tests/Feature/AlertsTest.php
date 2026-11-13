@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Modules\ProjectManagement\Http\Models\Collaborator;
 use App\Modules\ProjectManagement\Http\Models\Mission;
 use App\Modules\ProjectManagement\Http\Models\Task;
 use App\Modules\ProjectManagement\Http\Services\AlertService;
@@ -116,5 +115,25 @@ class AlertsTest extends TestCase
         $response->assertOk()
             ->assertSee('Mission Audit Retardé')
             ->assertDontSee('Mission Conforme');
+    }
+
+    public function test_mission_show_renders_clean_status_integer_days_and_diagnostic_tools(): void
+    {
+        $mission = Mission::create([
+            'title' => 'Audit financier',
+            'status' => 'in_progress',
+            'due_date' => now()->addDays(5)->format('Y-m-d'),
+        ]);
+
+        $response = $this->get(route('missions.show', $mission));
+
+        $response->assertOk()
+            ->assertSee('Audit financier')
+            ->assertSee('En cours')
+            ->assertDontSee('IN_PROGRESS')
+            ->assertSee('dans 5 jours')
+            ->assertSee('Outils du Diagnostic 360°')
+            ->assertSee('Cadrage Opérationnel')
+            ->assertSee('Feuille de route');
     }
 }

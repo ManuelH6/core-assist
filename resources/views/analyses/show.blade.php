@@ -1,31 +1,37 @@
 @extends('layouts.app')
 
-@section('title', 'Détail de l\'Analyse #' . $analysis->id)
+@section('title', 'Rapport d\'Analyse Financière #' . $analysis->id . ' - CoreAssist')
 
 @section('content')
-<div class="container">
-    <div class="page-header">
+<div class="container py-4">
+    <div class="mb-3">
+        <x-back-link :href="route('analyses.index')" label="Retour aux analyses" />
+    </div>
+
+    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
         <div>
-            <div style="margin-bottom: 0.5rem;">
-                <a href="{{ route('analyses.index') }}" class="btn btn-secondary btn-sm">&larr; Toutes les analyses</a>
-            </div>
-            <h1 class="page-title">
-                <x-icon name="chart" size="24" /> Rapport d'Analyse Financière #{{ $analysis->id }}
+            <div class="ba-eyebrow">RAPPORT FINANCIER</div>
+            <h1 class="page-title mb-1">
+                <x-icon name="chart" size="24" /> Rapport d'Analyse Financière #{{ $analysis->id }}<span class="ba-dot">.</span>
             </h1>
-            <p style="color: var(--text-muted); font-size: 0.95rem;">
+            <p class="page-subtitle">
                 Calcul exécuté le {{ $analysis->created_at->format('d/m/Y à H:i:s') }}
-                @if($analysis->collection)
-                    &bull; Basé sur la collecte <a href="{{ route('collections.show', $analysis->collection) }}" style="color: var(--primary);">{{ $analysis->collection->title }}</a>
+                @if($analysis->source instanceof \App\Modules\FinancialCollection\Http\Models\FinancialCollection)
+                    &bull; Source : <a href="{{ route('collections.show', $analysis->source) }}" class="text-dark fw-semibold">{{ $analysis->source->title }}</a>
+                @elseif($analysis->source)
+                    &bull; Source : <strong class="text-dark">{{ $analysis->source->title ?? $analysis->source->name ?? 'Entité source' }}</strong>
                 @endif
             </p>
         </div>
         <div>
-            @if($analysis->collection)
-                <form action="{{ route('analyses.store') }}" method="POST" style="display: inline;">
+            @if($analysis->source)
+                <form action="{{ route('analyses.store') }}" method="POST" class="d-inline">
                     @csrf
-                    <input type="hidden" name="financial_collection_id" value="{{ $analysis->collection->id }}">
+                    <input type="hidden" name="source_type" value="{{ get_class($analysis->source) }}">
+                    <input type="hidden" name="source_id" value="{{ $analysis->source->getKey() }}">
+                    <input type="hidden" name="analysis_type" value="{{ $analysis->analysis_type }}">
                     <button type="submit" class="btn btn-primary btn-sm">
-                        <x-icon name="refresh" size="14" /> Ré-analyser avec les données actuelles
+                        <x-icon name="refresh" size="14" /> Recalculer avec les données actuelles
                     </button>
                 </form>
             @endif
@@ -33,92 +39,126 @@
     </div>
 
     @if(session('success'))
-        <div class="alert alert-success">
+        <div class="alert alert-success mb-4">
             {{ session('success') }}
         </div>
     @endif
 
     @php
         $currency = $analysis->input_snapshot['currency'] ?? 'XOF';
-        $marginRate = $analysis->daily_revenue > 0 ? ($analysis->daily_gross_margin / $analysis->daily_revenue) * 100 : 0;
-        $snapshotQty = $analysis->input_snapshot['daily_quantity'] ?? 1;
-        $unitMargin = $snapshotQty > 0 ? ($analysis->daily_gross_margin / $snapshotQty) : 0;
+        $revenue = (float) $analysis->getResult('daily_revenue', 0);
+        $cost = (float) $analysis->getResult('daily_production_cost', 0);
+        $margin = (float) $analysis->getResult('daily_gross_margin', 0);
+        $marginRate = (float) $analysis->getResult('margin_rate_percent', $revenue > 0 ? ($margin / $revenue) * 100 : 0);
+        $unitMargin = (float) $analysis->getResult('unit_margin', 0);
     @endphp
 
     <!-- Indicateurs clés calculés -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-label">Chiffre d'Affaires / Jour</div>
-            <div class="stat-value stat-value-primary">{{ number_format($analysis->daily_revenue, 0, ',', ' ') }} {{ $currency }}</div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">Prix de vente &times; Quantité vendue</p>
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border shadow-sm">
+                <div class="card-body p-3 p-md-4 d-flex flex-column justify-content-between">
+                    <div class="stat-label">Chiffre d'Affaires / Jour</div>
+                    <div class="stat-value stat-value-primary">{{ number_format($revenue, 0, ',', ' ') }} {{ $currency }}</div>
+                    <div class="text-muted small mt-1">Prix de vente &times; Quantité vendue</div>
+                </div>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <div class="stat-label">Coût de Production / Jour</div>
-            <div class="stat-value stat-value-warning">{{ number_format($analysis->daily_production_cost, 0, ',', ' ') }} {{ $currency }}</div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">Coût unitaire &times; Quantité produite</p>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border shadow-sm">
+                <div class="card-body p-3 p-md-4 d-flex flex-column justify-content-between">
+                    <div class="stat-label">Coût de Production / Jour</div>
+                    <div class="stat-value stat-value-warning">{{ number_format($cost, 0, ',', ' ') }} {{ $currency }}</div>
+                    <div class="text-muted small mt-1">Coût unitaire &times; Quantité produite</div>
+                </div>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <div class="stat-label">Marge Brute / Jour</div>
-            <div class="stat-value stat-value-success">{{ number_format($analysis->daily_gross_margin, 0, ',', ' ') }} {{ $currency }}</div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">Bénéfice brut d'exploitation quotidien</p>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border shadow-sm">
+                <div class="card-body p-3 p-md-4 d-flex flex-column justify-content-between">
+                    <div class="stat-label">Marge Brute / Jour</div>
+                    <div class="stat-value stat-value-success">{{ number_format($margin, 0, ',', ' ') }} {{ $currency }}</div>
+                    <div class="text-muted small mt-1">Bénéfice brut direct quotidien</div>
+                </div>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <div class="stat-label">Taux de Rentabilité Brute</div>
-            <div class="stat-value">{{ number_format($marginRate, 1) }} %</div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">Marge unitaire : {{ number_format($unitMargin, 0, ',', ' ') }} {{ $currency }}/unité</p>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border shadow-sm">
+                <div class="card-body p-3 p-md-4 d-flex flex-column justify-content-between">
+                    <div class="stat-label">Taux de Rentabilité Brute</div>
+                    <div class="stat-value">{{ number_format($marginRate, 1) }} %</div>
+                    <div class="text-muted small mt-1">Marge unitaire : {{ number_format($unitMargin, 0, ',', ' ') }} {{ $currency }}/u</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Snapshot des données sources immuables -->
-    <div class="card" style="margin-top: 2rem;">
-        <h3 class="card-title">
-            <x-icon name="lock" size="18" /> Snapshot immuable des données sources
-        </h3>
-        <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
-            Ces paramètres représentent la copie exacte des données utilisées lors de l'exécution de ce calcul. Ils garantissent que l'analyse reste traçable et inaltérable même si la collecte est ultérieurement modifiée.
-        </p>
+    <!-- Snapshots immuables (Entrées & Résultats) -->
+    <div class="row g-3 mb-4">
+        <!-- Snapshot des paramètres d'entrée -->
+        <div class="col-12 col-lg-6">
+            <div class="card h-100 border shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold text-dark mb-2">
+                        <x-icon name="lock" size="16" /> Snapshot des données sources (Input)
+                    </h3>
+                    <p class="text-muted small mb-3">
+                        Données d'entrées utilisées lors de l'exécution du calcul.
+                    </p>
 
-        @if(!empty($analysis->input_snapshot))
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Paramètre source</th>
-                        <th>Valeur figée au calcul</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Produit / Titre</strong></td>
-                        <td>{{ $analysis->input_snapshot['title'] ?? '-' }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Date d'activité</strong></td>
-                        <td>{{ $analysis->input_snapshot['entry_date'] ?? 'Non spécifiée' }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Prix de vente unitaire</strong></td>
-                        <td>{{ number_format($analysis->input_snapshot['selling_price'] ?? 0, 0, ',', ' ') }} {{ $currency }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Quantité journalière</strong></td>
-                        <td>{{ number_format($analysis->input_snapshot['daily_quantity'] ?? 0, 0, ',', ' ') }} pièces</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Coût unitaire de production</strong></td>
-                        <td>{{ number_format($analysis->input_snapshot['unit_production_cost'] ?? 0, 0, ',', ' ') }} {{ $currency }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Devise monétaire</strong></td>
-                        <td>{{ $currency }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        @else
-            <p style="color: var(--text-muted);">Aucun snapshot disponible pour cette analyse.</p>
-        @endif
+                    @if(!empty($analysis->input_snapshot))
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <tbody>
+                                    @foreach($analysis->input_snapshot as $key => $val)
+                                        <tr>
+                                            <td class="text-muted small py-2">{{ ucfirst(str_replace('_', ' ', $key)) }}</td>
+                                            <td class="fw-semibold text-end py-2">{{ is_array($val) ? json_encode($val) : $val }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-muted small">Aucun snapshot d'entrée enregistré.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- Snapshot des résultats calculés -->
+        <div class="col-12 col-lg-6">
+            <div class="card h-100 border shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold text-dark mb-2">
+                        <x-icon name="check" size="16" /> Snapshot des résultats (Output)
+                    </h3>
+                    <p class="text-muted small mb-3">
+                        Métriques figées produites par la méthode : <strong>{{ $analysis->analysis_type }}</strong>.
+                    </p>
+
+                    @if(!empty($analysis->result_snapshot))
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <tbody>
+                                    @foreach($analysis->result_snapshot as $key => $val)
+                                        <tr>
+                                            <td class="text-muted small py-2">{{ ucfirst(str_replace('_', ' ', $key)) }}</td>
+                                            <td class="fw-semibold text-end py-2">{{ is_numeric($val) ? number_format((float) $val, 2, ',', ' ') : $val }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-muted small">Aucun snapshot de résultat enregistré.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

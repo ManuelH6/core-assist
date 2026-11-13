@@ -37,6 +37,7 @@ class FinancialCollectionService
     public function update(FinancialCollection $collection, array $data): FinancialCollection
     {
         $collection->update($data);
+
         return $collection;
     }
 

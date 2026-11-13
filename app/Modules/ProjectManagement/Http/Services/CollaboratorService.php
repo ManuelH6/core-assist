@@ -25,6 +25,7 @@ class CollaboratorService
     public function update(Collaborator $collaborator, array $data): Collaborator
     {
         $collaborator->update($data);
+
         return $collaborator;
     }
 

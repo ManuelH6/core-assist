@@ -7,7 +7,7 @@ use App\Modules\Analysis\Http\Models\FinancialAnalysis;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class FinancialCollection extends Model
 {
@@ -35,9 +35,12 @@ class FinancialCollection extends Model
         ];
     }
 
-    public function analyses(): HasMany
+    /**
+     * Analyses financières polymorphiques rattachées à cette collecte.
+     */
+    public function analyses(): MorphMany
     {
-        return $this->hasMany(FinancialAnalysis::class, 'financial_collection_id');
+        return $this->morphMany(FinancialAnalysis::class, 'source');
     }
 
     public function creator(): BelongsTo

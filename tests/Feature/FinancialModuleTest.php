@@ -124,12 +124,17 @@ class FinancialModuleTest extends TestCase
             ->assertJsonPath('data.daily_revenue', '60000.00')
             ->assertJsonPath('data.daily_production_cost', '36000.00')
             ->assertJsonPath('data.daily_gross_margin', '24000.00')
-            ->assertJsonPath('data.input_snapshot.selling_price', '200.00')
+            ->assertJsonPath('data.source_type', FinancialCollection::class)
+            ->assertJsonPath('data.source_id', $collection->id)
+            ->assertJsonPath('data.analysis_type', 'gross_margin')
             ->assertJsonPath('data.input_snapshot.daily_quantity', 300)
-            ->assertJsonPath('data.input_snapshot.currency', 'XOF');
+            ->assertJsonPath('data.input_snapshot.currency', 'XOF')
+            ->assertJsonPath('data.result_snapshot.daily_gross_margin', 24000);
 
         $this->assertDatabaseHas('financial_analyses', [
-            'financial_collection_id' => $collection->id,
+            'source_type' => FinancialCollection::class,
+            'source_id' => $collection->id,
+            'analysis_type' => 'gross_margin',
             'daily_revenue' => 60000,
             'daily_production_cost' => 36000,
             'daily_gross_margin' => 24000,
@@ -143,7 +148,42 @@ class FinancialModuleTest extends TestCase
 
         $analysis = FinancialAnalysis::first();
         $this->assertEquals('60000.00', $analysis->daily_revenue);
-        $this->assertEquals('200.00', $analysis->input_snapshot['selling_price']);
+        $this->assertEquals(200.0, (float) $analysis->input_snapshot['selling_price']);
         $this->assertEquals(300, $analysis->input_snapshot['daily_quantity']);
+        $this->assertEquals(24000.0, (float) $analysis->result_snapshot['daily_gross_margin']);
+        $this->assertInstanceOf(FinancialCollection::class, $analysis->source);
+        $this->assertEquals(1, $collection->analyses()->count());
+    }
+
+    public function test_can_run_polymorphic_analysis_via_source_type_and_id(): void
+    {
+        $collection = FinancialCollection::create([
+            'title' => 'Diagnostic Atelier',
+            'entry_date' => '2026-11-06',
+            'currency' => 'EUR',
+            'selling_price' => 10.00,
+            'daily_quantity' => 100,
+            'unit_production_cost' => 4.00,
+        ]);
+
+        $response = $this->postJson('/api/analyses', [
+            'source_type' => FinancialCollection::class,
+            'source_id' => $collection->id,
+            'analysis_type' => 'gross_margin',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.analysis_type', 'gross_margin')
+            ->assertJsonPath('data.daily_revenue', '1000.00')
+            ->assertJsonPath('data.daily_production_cost', '400.00')
+            ->assertJsonPath('data.daily_gross_margin', '600.00')
+            ->assertJsonPath('data.result_snapshot.margin_rate_percent', 60);
+
+        $this->assertDatabaseHas('financial_analyses', [
+            'source_type' => FinancialCollection::class,
+            'source_id' => $collection->id,
+            'analysis_type' => 'gross_margin',
+            'daily_gross_margin' => 600.00,
+        ]);
     }
 }

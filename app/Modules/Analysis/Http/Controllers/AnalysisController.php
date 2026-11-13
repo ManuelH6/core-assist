@@ -5,6 +5,7 @@ namespace App\Modules\Analysis\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Analysis\Http\Services\FinancialAnalysisService;
 use App\Modules\FinancialCollection\Http\Models\FinancialCollection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,17 +36,39 @@ class AnalysisController extends Controller
     }
 
     /**
-     * Exécuter une nouvelle analyse financière à partir d'une collecte.
+     * Exécuter une nouvelle analyse financière à partir d'une source polymorphique.
      */
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'financial_collection_id' => ['required', 'exists:financial_collections,id'],
+            'financial_collection_id' => ['nullable', 'exists:financial_collections,id'],
+            'source_type' => ['nullable', 'string'],
+            'source_id' => ['nullable', 'integer'],
+            'analysis_type' => ['nullable', 'string'],
         ]);
 
-        $collection = FinancialCollection::findOrFail($validated['financial_collection_id']);
+        $type = $validated['analysis_type'] ?? 'gross_margin';
 
-        $analysis = $this->analysisService->analyzeCollection($collection);
+        if (! empty($validated['source_type']) && ! empty($validated['source_id'])) {
+            $sourceClass = $validated['source_type'];
+            if (! class_exists($sourceClass) || ! is_subclass_of($sourceClass, Model::class)) {
+                abort(400, 'Modèle source non valide.');
+            }
+            $source = $sourceClass::findOrFail($validated['source_id']);
+        } elseif (! empty($validated['financial_collection_id'])) {
+            $source = FinancialCollection::findOrFail($validated['financial_collection_id']);
+        } else {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Veuillez spécifier une source valide.',
+                ], 422);
+            }
+
+            return back()->withErrors(['financial_collection_id' => 'Veuillez sélectionner une collecte à analyser.']);
+        }
+
+        $analysis = $this->analysisService->analyze($source, $type);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -60,7 +83,7 @@ class AnalysisController extends Controller
     }
 
     /**
-     * Consulter le détail d'une analyse (avec son snapshot historique).
+     * Consulter le détail d'une analyse (avec ses snapshots historiques).
      */
     public function show(Request $request, int $id): View|JsonResponse
     {
@@ -77,7 +100,7 @@ class AnalysisController extends Controller
     }
 
     /**
-     * Liste des analyses d'une collecte spécifique.
+     * Liste des analyses d'une collecte spécifique (compatibilité).
      */
     public function byCollection(int $collectionId): JsonResponse
     {

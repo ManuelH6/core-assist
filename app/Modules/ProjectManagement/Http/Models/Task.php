@@ -60,7 +60,7 @@ class Task extends Model
      */
     public function isOverdue(): bool
     {
-        return !in_array($this->status, ['done', 'cancelled'])
+        return ! in_array($this->status, ['done', 'cancelled'])
             && $this->due_date !== null
             && $this->due_date->endOfDay()->isPast();
     }
@@ -70,11 +70,11 @@ class Task extends Model
      */
     public function daysOverdue(): int
     {
-        if (!$this->isOverdue()) {
+        if (! $this->isOverdue()) {
             return 0;
         }
 
-        return (int) max(1, $this->due_date->diffInDays(now()));
+        return (int) max(1, $this->due_date->startOfDay()->diffInDays(now()->startOfDay()));
     }
 
     /**
@@ -93,7 +93,7 @@ class Task extends Model
     public function isOrphan(): bool
     {
         return $this->collaborator_id === null
-            && !in_array($this->status, ['done', 'cancelled']);
+            && ! in_array($this->status, ['done', 'cancelled']);
     }
 
     /**

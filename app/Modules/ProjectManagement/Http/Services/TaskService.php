@@ -14,6 +14,7 @@ class TaskService
     public function update(Task $task, array $data): Task
     {
         $task->update($data);
+
         return $task;
     }
 
@@ -25,6 +26,7 @@ class TaskService
     public function changeStatus(Task $task, string $status): Task
     {
         $task->updateStatus($status);
+
         return $task;
     }
 }

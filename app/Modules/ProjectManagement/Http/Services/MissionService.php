@@ -14,7 +14,23 @@ class MissionService
 
     public function findById(int|string $id): Mission
     {
-        return Mission::with(['manager', 'tasks.collaborator'])->findOrFail($id);
+        return Mission::with([
+            'manager',
+            'framing.request.client',
+            'members.user',
+            'toolUsages.toolVersion.tool',
+            'tasks.collaborator',
+            'framingSheet:id,mission_id',
+            'scopeCanvas:id,mission_id',
+            'intakeRegister:id,mission_id',
+            'stakeholderGrid:id,mission_id',
+            'diagnosticMatrix:id,mission_id',
+            'problemGrid:id,mission_id',
+            'restitutionDeck:id,mission_id',
+            'decisionCapture:id,mission_id',
+            'archivePack:id,mission_id',
+            'nextStepRouter:id,mission_id',
+        ])->findOrFail($id);
     }
 
     public function create(array $data): Mission
@@ -25,6 +41,7 @@ class MissionService
     public function update(Mission $mission, array $data): Mission
     {
         $mission->update($data);
+
         return $mission;
     }
 
